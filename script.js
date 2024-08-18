@@ -1,170 +1,222 @@
-const rows = 102;
-const cols = 102;
-let grid = createGrid(rows, cols);
-let nextGrid = createGrid(rows, cols);
-let interval;
-let currentRuleSet = 1; // Initialize with a default rule set
-let maxStates = 50; // Default value for Rule Set 3
+// Constants and cached DOM elements
+const GRID_SIZES = [
+  { rows: 51, cols: 51, gridSize: 12, cellSize: 13 },
+  { rows: 102, cols: 102, gridSize: 6, cellSize: 7 },
+  { rows: 204, cols: 204, gridSize: 3, cellSize: 4 }
+];
+
+const birthCheckboxes = document.querySelectorAll('input[name="b"]');
+const survivalCheckboxes = document.querySelectorAll('input[name="s"]');
+
+let customBirthRules = new Set();
+let customSurvivalRules = new Set();
 
 const game = document.getElementById('game');
+const gritSelect = document.getElementById('grit-select');
 const ruleSetSelector = document.getElementById('rule-select');
 const rule3Settings = document.getElementById('rule3-settings');
+const rule0Settings = document.getElementById('rule0-settings');
 const maxStatesInput = document.getElementById('max-states');
 
-// Create the grid
-for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.addEventListener('click', () => {
-            cell.classList.toggle('alive');
-            grid[row][col] = grid[row][col] ? 0 : 1;
-        });
-        game.appendChild(cell);
-    }
-}
+let grid, nextGrid, rows, cols, interval;
+let currentRuleSet = 1;
+let maxStates = 50;
 
+// Event listeners
+gritSelect.addEventListener('change', handleGritChange);
+ruleSetSelector.addEventListener('change', handleRuleSetChange);
+maxStatesInput.addEventListener('change', handleMaxStatesChange);
 document.getElementById('start').addEventListener('click', startGame);
 document.getElementById('stop').addEventListener('click', stopGame);
 document.getElementById('clear').addEventListener('click', clearGrid);
 document.getElementById('random').addEventListener('click', randomizeGrid);
 
-ruleSetSelector.addEventListener('change', function() {
-    currentRuleSet = parseInt(this.value); // Update the current rule set
-    updateRuleSetUI();
+birthCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
+survivalCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 
-    if (interval) {
-        stopGame();
-        updateGrid(); // Ensure the grid updates immediately with the new rules
-        startGame();
-    } else {
-        updateGrid(); // Update grid even if the game is stopped
-    }
-});
+// Initialize the game
+initializeGame();
 
-maxStatesInput.addEventListener('change', (e) => {
-    maxStates = parseInt(e.target.value);
-    if (interval) {
-        stopGame();
-        startGame();
-    }
-});
-
-function updateRuleSetUI() {
-    if (currentRuleSet === 3) {
-        rule3Settings.style.display = 'block';
-    } else {
-        rule3Settings.style.display = 'none';
-    }
+function initializeGame() {
+  handleGritChange();
+  updateRuleSetUI();
 }
 
-function startGame() {
-    if (interval) clearInterval(interval);
-    interval = setInterval(runGame, 100);
+function handleGritChange() {
+  const { rows: newRows, cols: newCols, gridSize, cellSize } = GRID_SIZES[gritSelect.value - 1];
+  rows = newRows;
+  cols = newCols;
+
+  document.documentElement.style.setProperty('--grid-size', `${gridSize}px`);
+  document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
+  document.documentElement.style.setProperty('--grit-cols', `${cols}`);
+  document.documentElement.style.setProperty('--grit-rows', `${rows}`);
+
+  createAndUpdateGrid();
 }
 
-function stopGame() {
-    clearInterval(interval);
-    interval = null;
-}
-
-function clearGrid() {
+function handleRuleSetChange() {
+  currentRuleSet = parseInt(ruleSetSelector.value, 10);
+  updateRuleSetUI();
+  if (interval) {
     stopGame();
-    grid = createGrid(rows, cols);
     updateGrid();
+    startGame();
+  } else {
+    updateGrid();
+  }
 }
 
-function randomizeGrid() {
-    grid = createRandomGrid(rows, cols);
-    updateGrid();
+function handleMaxStatesChange() {
+  maxStates = parseInt(maxStatesInput.value, 10);
+  if (interval) {
+    stopGame();
+    startGame();
+  }
+}
+
+function createAndUpdateGrid() {
+  const fragment = document.createDocumentFragment();
+  grid = createGrid(rows, cols);
+  nextGrid = createGrid(rows, cols);
+
+  game.innerHTML = '';
+
+  for (let i = 0; i < rows * cols; i++) {
+    const cell = document.createElement('div');
+    cell.classList.add('cell');
+    cell.addEventListener('click', () => toggleCell(Math.floor(i / cols), i % cols));
+    fragment.appendChild(cell);
+  }
+
+  game.appendChild(fragment);
+  updateGrid();
+}
+
+function toggleCell(row, col) {
+  const totalStates = getTotalStates();
+  grid[row][col] = (grid[row][col] + 1) % totalStates;
+  updateCell(row, col);
+}
+
+function updateCell(row, col) {
+  const cellIndex = row * cols + col;
+  const cellElement = game.children[cellIndex];
+  cellElement.style.backgroundColor = getCellColor(grid[row][col]);
+}
+
+function getCellColor(state) {
+  const totalStates = getTotalStates();
+
+  if (state === 0) return 'transparent'; // Dead cells are now transparent
+
+  if (totalStates === 2) {
+    return '#4caf50';
+  } else if (currentRuleSet === 3) {
+    const intensity = state / (maxStates - 1);
+    return `rgba(255, 0, 0, ${intensity})`;
+  } else {
+    const hue = (state - 1) * (360 / (totalStates - 1));
+    return `hsl(${hue}, 100%, 50%)`;
+  }
+}
+
+function getTotalStates() {
+  switch (currentRuleSet) {
+    case 2: return 3; // Brian's Brain
+    case 3: return maxStates; // Belousov-Zhabotinsky
+    case 7: return 7; // 7 States with Moore Neighborhood
+    default: return 2; // All other rules use 2 states
+  }
 }
 
 function createGrid(rows, cols) {
-    return Array.from({ length: rows }, () => Array(cols).fill(0));
+  return new Array(rows).fill(null).map(() => new Array(cols).fill(0));
 }
 
-function createRandomGrid(rows, cols) {
-    return Array.from({ length: rows }, () => Array(cols).fill(0).map(() => Math.random() > 0.7 ? 1 : 0));
+function startGame() {
+  if (interval) clearInterval(interval);
+  interval = setInterval(runGame, 100);
+}
+
+function stopGame() {
+  clearInterval(interval);
+  interval = null;
+}
+
+function clearGrid() {
+  stopGame();
+  grid = createGrid(rows, cols);
+  updateGrid();
+}
+
+function randomizeGrid() {
+  const totalStates = getTotalStates();
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      grid[i][j] = Math.floor(Math.random() * totalStates);
+    }
+  }
+  updateGrid();
 }
 
 function runGame() {
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            applyRules(row, col);
-        }
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      applyRules(row, col);
     }
+  }
 
-    // Swap grids
-    [grid, nextGrid] = [nextGrid, grid];
-    updateGrid();
+  [grid, nextGrid] = [nextGrid, grid];
+  updateGrid();
 }
 
 function applyRules(row, col) {
-    const aliveNeighbors = countAliveNeighbors(row, col);
+  const aliveNeighbors = countAliveNeighbors(row, col);
+  const ruleFunctions = [
+    applyCustomRules,
+    applyRuleSet1, applyRuleSet2, applyRuleSet3, applyRuleSet4,
+    applyRuleSet5, applyRuleSet6, applyRuleSet7, applyRuleSet8,
+    applyRuleSet9, applyRuleSet10, applyRuleSet11, applyRuleSet12,
+    applyRuleSet13, applyRuleSet14, applyRuleSet15
+  ];
 
-    switch (currentRuleSet) {
-        case 1:
-            applyRuleSet1(row, col, aliveNeighbors);
-            break;
-        case 2:
-            applyRuleSet2(row, col, aliveNeighbors);
-            break;
-        case 3:
-            applyRuleSet3(row, col, aliveNeighbors);
-            break;
-        case 4:
-            applyRuleSet4(row, col, aliveNeighbors);
-            break;
-        case 5:
-            applyRuleSet5(row, col, aliveNeighbors);
-            break;
-        case 6:
-            applyRuleSet6(row, col, aliveNeighbors);
-            break;
-        case 7:
-            applyRuleSet7(row, col, aliveNeighbors);
-            break;
-        case 8:
-            applyRuleSet8(row, col, aliveNeighbors);
-            break;
-        case 9:
-            applyRuleSet9(row, col, aliveNeighbors);
-            break;
-        case 10:
-            applyRuleSet10(row, col, aliveNeighbors);
-            break;
-        case 11:
-            applyRuleSet11(row, col, aliveNeighbors);
-            break;
-        case 12:
-            applyRuleSet12(row, col, aliveNeighbors);
-            break;
-        case 13:
-            applyRuleSet13(row, col, aliveNeighbors);
-            break;
-        case 14:
-            applyRuleSet14(row, col, aliveNeighbors);
-            break;
-        case 15:
-            applyRuleSet14(row, col, aliveNeighbors);
-            break;
+  ruleFunctions[currentRuleSet](row, col, aliveNeighbors);
+}
+
+// custom rules
+function updateCustomRules() {
+  customBirthRules.clear();
+  customSurvivalRules.clear();
+
+  birthCheckboxes.forEach(checkbox => {
+    if (checkbox.checked && checkbox.value !== 'none') {
+      customBirthRules.add(parseInt(checkbox.value));
     }
+  });
+
+  survivalCheckboxes.forEach(checkbox => {
+    if (checkbox.checked && checkbox.value !== 'none') {
+      customSurvivalRules.add(parseInt(checkbox.value));
+    }
+  });
+}
+
+// apply custom rules
+function applyCustomRules(row, col, aliveNeighbors) {
+  if (grid[row][col] === 1) {
+    nextGrid[row][col] = customSurvivalRules.has(aliveNeighbors) ? 1 : 0;
+  } else {
+    nextGrid[row][col] = customBirthRules.has(aliveNeighbors) ? 1 : 0;
+  }
 }
 
 // Original Life (B3/S23)
 function applyRuleSet1(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 2 || aliveNeighbors > 3) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3) ? 1 : 0;
     }
 }
 
@@ -193,51 +245,31 @@ function applyRuleSet3(row, col, aliveNeighbors) {
         nextGrid[row][col] = Math.min(n, Math.floor(avgNeighbors + g));
     } else {
         const infectedNeighbors = countInfectedNeighbors(row, col);
-        nextGrid[row][col] = Math.floor(infectedNeighbors / 8 * n);
+        nextGrid[row][col] = Math.floor((infectedNeighbors / 8) * n);
     }
 }
 
 // HighLife (B36/S23)
 function applyRuleSet4(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 2 || aliveNeighbors > 3) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 6) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3 || aliveNeighbors === 6) ? 1 : 0;
     }
 }
 
 // Day & Night (B3678/S34678)
 function applyRuleSet5(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 2 || aliveNeighbors > 3) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 4 || aliveNeighbors === 6 || aliveNeighbors === 7 || aliveNeighbors === 8) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3 || aliveNeighbors === 4 || aliveNeighbors === 6 || aliveNeighbors === 7 || aliveNeighbors === 8) ? 1 : 0;
     }
 }
 
 // Seeds (B2/S)
 function applyRuleSet6(row, col, aliveNeighbors) {
-    if (grid[row][col] === 0 && aliveNeighbors === 2) {
-        nextGrid[row][col] = 1; // Birth
-    } else {
-        nextGrid[row][col] = 0; // Death
-    }
+    nextGrid[row][col] = (grid[row][col] === 0 && aliveNeighbors === 2) ? 1 : 0;
 }
 
 // 7 States with Moore Neighborhood
@@ -255,195 +287,72 @@ function applyRuleSet7(row, col, aliveNeighbors) {
     }
 }
 
-// Diamoeba (B35678/S5678)
+// Mazectric (B3/S12345)
 function applyRuleSet8(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 5 || aliveNeighbors > 8) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 1 || aliveNeighbors > 5) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 5 || aliveNeighbors === 6 || aliveNeighbors === 7 || aliveNeighbors === 8) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3) ? 1 : 0;
     }
 }
 
-// 2x2 (B36/S125)
+// 5-Neighbor Life (Von Neumann)
 function applyRuleSet9(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 1 || aliveNeighbors > 5) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 2 || aliveNeighbors > 3) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 6) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    }
-}
-
-// Move (B368/S245)
-function applyRuleSet10(row, col, aliveNeighbors) {
-    if (grid[row][col] === 1) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 5) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
-    } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 6 || aliveNeighbors === 8) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3) ? 1 : 0;
     }
 }
 
 // Amoeba (B357/S1358)
+function applyRuleSet10(row, col, aliveNeighbors) {
+    if (grid[row][col] === 1) {
+        nextGrid[row][col] = (aliveNeighbors < 1 || aliveNeighbors > 5) ? 0 : 1;
+    } else {
+        nextGrid[row][col] = (aliveNeighbors === 3 || aliveNeighbors === 5 || aliveNeighbors === 7) ? 1 : 0;
+    }
+}
+
+// SnowLife (B367/S235678)
 function applyRuleSet11(row, col, aliveNeighbors) {
     if (grid[row][col] === 1) {
-        if (aliveNeighbors < 1 || aliveNeighbors > 8) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
+        nextGrid[row][col] = (aliveNeighbors < 2 || aliveNeighbors > 3) ? 0 : 1;
     } else {
-        if (aliveNeighbors === 3 || aliveNeighbors === 5 || aliveNeighbors === 7) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+        nextGrid[row][col] = (aliveNeighbors === 3 || aliveNeighbors === 6 || aliveNeighbors === 7) ? 1 : 0;
+    }
+}
+
+// FishFood (B2/S12)
+function applyRuleSet12(row, col, aliveNeighbors) {
+    nextGrid[row][col] = (grid[row][col] === 0 && aliveNeighbors === 2) || (grid[row][col] === 1 && aliveNeighbors >= 1 && aliveNeighbors <= 2) ? 1 : 0;
+}
+
+// Life Without Death (B3/S012345678)
+function applyRuleSet13(row, col, aliveNeighbors) {
+    if (grid[row][col] === 0) {
+        nextGrid[row][col] = (aliveNeighbors === 3) ? 1 : 0;
+    } else {
+        nextGrid[row][col] = 1; // Cells never die
+    }
+}
+
+// Coral (B3/S45678)
+function applyRuleSet14(row, col, aliveNeighbors) {
+    if (grid[row][col] === 1) {
+        nextGrid[row][col] = (aliveNeighbors < 4 || aliveNeighbors > 8) ? 0 : 1;
+    } else {
+        nextGrid[row][col] = (aliveNeighbors === 3) ? 1 : 0;
     }
 }
 
 // Replicator (B1357/S1357)
-function applyRuleSet12(row, col, aliveNeighbors) {
-    if (grid[row][col] === 1) {
-        if (aliveNeighbors < 1 || aliveNeighbors > 7) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
-    } else {
-        if (aliveNeighbors === 1 || aliveNeighbors === 3 || aliveNeighbors === 5 || aliveNeighbors === 7) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    }
-}
-
-// 3-State Life (B2/S02-3)
-function applyRuleSet13(row, col, aliveNeighbors) {
-    const state = grid[row][col];
-
-    if (state === 0) {
-        if (aliveNeighbors === 2) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    } else if (state === 1) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 2;
-        }
-    } else if (state === 2) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 1;
-        }
-    }
-}
-
-// 4-State Life (B012/S0123)
-function applyRuleSet14(row, col, aliveNeighbors) {
-    const state = grid[row][col];
-
-    if (state === 0) {
-        if (aliveNeighbors === 1 || aliveNeighbors === 2) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    } else if (state === 1) {
-        if (aliveNeighbors < 1 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 2;
-        }
-    } else if (state === 2) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 3;
-        }
-    } else if (state === 3) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 3) {
-            nextGrid[row][col] = 2;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    }
-}
-
-// 5-State Life (B01234/S01234)
 function applyRuleSet15(row, col, aliveNeighbors) {
-    const state = grid[row][col];
-
-    if (state === 0) {
-        if (aliveNeighbors === 1 || aliveNeighbors === 2 || aliveNeighbors === 3 || aliveNeighbors === 4) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 0;
-        }
-    } else if (state === 1) {
-        if (aliveNeighbors < 1 || aliveNeighbors > 4) {
-            nextGrid[row][col] = 0;
-        } else {
-            nextGrid[row][col] = 2;
-        }
-    } else if (state === 2) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 4) {
-            nextGrid[row][col] = 1;
-        } else {
-            nextGrid[row][col] = 3;
-        }
-    } else if (state === 3) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 4) {
-            nextGrid[row][col] = 2;
-        } else {
-            nextGrid[row][col] = 4;
-        }
-    } else if (state === 4) {
-        if (aliveNeighbors < 2 || aliveNeighbors > 4) {
-            nextGrid[row][col] = 3;
-        } else {
-            nextGrid[row][col] = 0;
-        }
+    if (grid[row][col] === 1) {
+        nextGrid[row][col] = (aliveNeighbors % 2 === 0) ? 0 : 1;
+    } else {
+        nextGrid[row][col] = (aliveNeighbors % 2 !== 0) ? 1 : 0;
     }
-}
-
-function countAliveNeighbors(row, col) {
-    let count = 0;
-    for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <= 1; j++) {
-            if (i === 0 && j === 0) continue;
-            const newRow = (row + i + rows) % rows;
-            const newCol = (col + j + cols) % cols;
-            count += grid[newRow][newCol] > 0 ? 1 : 0;
-        }
-    }
-    return count;
 }
 
 function getAverageNeighborState(row, col) {
@@ -452,10 +361,12 @@ function getAverageNeighborState(row, col) {
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
             if (i === 0 && j === 0) continue;
-            const newRow = (row + i + rows) % rows;
-            const newCol = (col + j + cols) % cols;
-            sum += grid[newRow][newCol];
-            count++;
+            const neighborRow = row + i;
+            const neighborCol = col + j;
+            if (neighborRow >= 0 && neighborRow < rows && neighborCol >= 0 && neighborCol < cols) {
+                sum += grid[neighborRow][neighborCol];
+                count++;
+            }
         }
     }
     return count > 0 ? sum / count : 0;
@@ -466,55 +377,40 @@ function countInfectedNeighbors(row, col) {
     for (let i = -1; i <= 1; i++) {
         for (let j = -1; j <= 1; j++) {
             if (i === 0 && j === 0) continue;
-            const newRow = (row + i + rows) % rows;
-            const newCol = (col + j + cols) % cols;
-            count += grid[newRow][newCol] > 0 ? 1 : 0;
+            const neighborRow = row + i;
+            const neighborCol = col + j;
+            if (neighborRow >= 0 && neighborRow < rows && neighborCol >= 0 && neighborCol < cols) {
+                if (grid[neighborRow][neighborCol] > 0 && grid[neighborRow][neighborCol] < maxStates) {
+                    count++;
+                }
+            }
         }
     }
     return count;
 }
 
-function getColorForState(state) {
-    const colors = [
-        '#FF0000', // Red
-        '#FF7F00', // Orange
-        '#FFFF00', // Yellow
-        '#7FFF00', // Green
-        '#00FFFF', // Cyan
-        '#0000FF', // Blue
-        '#8B00FF'  // Violet
-    ];
-    return colors[state % colors.length];
+function updateRuleSetUI() {
+  rule3Settings.style.display = currentRuleSet === 3 ? 'block' : 'none';
+  rule0Settings.style.display = currentRuleSet === 0 ? 'block' : 'none';
 }
 
-function updateGrid() {
-    const cells = document.querySelectorAll('.cell');
-    for (let i = 0; i < cells.length; i++) {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        cells[i].className = 'cell';
-        if (grid[row][col] > 0) {
-            if (currentRuleSet === 2 && grid[row][col] === 2) {
-                cells[i].classList.add('dying');
-            } else {
-                cells[i].classList.add('alive');
-            }
-
-            if (currentRuleSet === 3) {
-                const red = Math.floor((grid[row][col] / maxStates) * 255);
-                const green = Math.floor(((grid[row][col] / maxStates) * 255)/2);
-                const blue = Math.floor(((grid[row][col] / maxStates) * 255)/3);
-                cells[i].style.backgroundColor = `rgb(0, ${green}, ${blue})`;
-            } else if (currentRuleSet === 2 || currentRuleSet === 7 || currentRuleSet === 13 || currentRuleSet === 14 || currentRuleSet === 15) {
-                cells[i].style.backgroundColor = getColorForState(grid[row][col]);
-            } else {
-                cells[i].style.backgroundColor = '';
-            }
-        } else {
-            cells[i].style.backgroundColor = '';
-        }
+function countAliveNeighbors(row, col) {
+  let count = 0;
+  for (let i = -1; i <= 1; i++) {
+    for (let j = -1; j <= 1; j++) {
+      if (i === 0 && j === 0) continue;
+      const neighborRow = (row + i + rows) % rows;
+      const neighborCol = (col + j + cols) % cols;
+      count += grid[neighborRow][neighborCol] === 1 ? 1 : 0;
     }
+  }
+  return count;
 }
-
-// Initialize the UI
-updateRuleSetUI();
+function updateGrid() {
+  const cells = game.children;
+  for (let i = 0; i < rows * cols; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    cells[i].style.backgroundColor = getCellColor(grid[row][col]);
+  }
+}

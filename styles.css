@@ -1,3 +1,10 @@
+:root {
+  --grit-cols: 102;
+  --grit-rows: 102;
+  --grid-size: 6px;
+  --cell-size: 7px;
+}
+
 body {
     display: flex;
     flex-direction: row-reverse;
@@ -10,10 +17,18 @@ body {
     align-items: center;
 }
 
+h1 {
+    text-align: center;
+}
+
+h2, h3 {
+    margin: 0;
+}
+
 #game {
     display: grid;
-    grid-template-columns: repeat(102, 6px);
-    grid-template-rows: repeat(102, 6px);
+    grid-template-columns: repeat(var(--grit-cols), var(--grid-size));
+    grid-template-rows: repeat(var(--grit-rows), var(--grid-size));
     gap: 1px;
     background-color: #2d2d2d;
     border: 1px solid #3d3d3d;
@@ -22,18 +37,8 @@ body {
 }
 
 .cell {
-    width: 7px;
-    height: 7px;
-/*     background-color: #1e1e1e; */
-}
-
-
-.cell.alive {
-    background-color: #4caf50;
-}
-
-.cell.dying {
-    background-color: #5d8c5e;
+    width: var(--cell-size);
+    height: var(--cell-size);
 }
 
 #settings {
@@ -69,10 +74,23 @@ select {
     padding-right: 30px;
 }
 
+#rule0-settings {
+    background-color: #4caf50;
+    border-radius: 4px;
+    padding: 15px;
+    color: #1e1e1e;
+}
+
+#rule0-settings h2 {
+    text-align: center;
+    margin-top: 0;
+}
+
 #rule3-settings {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
+    background-color: #4caf50;
+    padding: 10px;
+    border-radius: 4px;
+    color: #1e1e1e;
 }
 
 #rule3-settings label {
