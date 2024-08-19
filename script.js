@@ -1,8 +1,8 @@
 // Constants and cached DOM elements
 const GRID_SIZES = [
-  { rows: 51, cols: 51, gridSize: 12, cellSize: 13 },
-  { rows: 102, cols: 102, gridSize: 6, cellSize: 7 },
-  { rows: 204, cols: 204, gridSize: 3, cellSize: 4 }
+  { rows: 51, cols: 51, gridSize: 12, cellSize: 11.9 },
+  { rows: 102, cols: 102, gridSize: 6, cellSize: 5.9 },
+  { rows: 204, cols: 204, gridSize: 3, cellSize: 2.9 }
 ];
 
 const birthCheckboxes = document.querySelectorAll('input[name="b"]');
@@ -34,12 +34,29 @@ document.getElementById('random').addEventListener('click', randomizeGrid);
 birthCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 survivalCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 
+
+const cellShapeSelect = document.getElementById('cell-shape-select');
+cellShapeSelect.addEventListener('change', updateCellShape);
+
+function updateCellShape() {
+    const shape = cellShapeSelect.value;
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(cell => {
+        if (shape === 'circle') {
+            cell.style.borderRadius = '50%';
+        } else {
+            cell.style.borderRadius = '0'; // Square shape
+        }
+    });
+}
+
 // Initialize the game
 initializeGame();
 
 function initializeGame() {
   handleGritChange();
   updateRuleSetUI();
+  updateCellShape();
 }
 
 function handleGritChange() {
@@ -76,22 +93,24 @@ function handleMaxStatesChange() {
 }
 
 function createAndUpdateGrid() {
-  const fragment = document.createDocumentFragment();
-  grid = createGrid(rows, cols);
-  nextGrid = createGrid(rows, cols);
+    const fragment = document.createDocumentFragment();
+    grid = createGrid(rows, cols);
+    nextGrid = createGrid(rows, cols);
 
-  game.innerHTML = '';
+    game.innerHTML = '';
 
-  for (let i = 0; i < rows * cols; i++) {
-    const cell = document.createElement('div');
-    cell.classList.add('cell');
-    cell.addEventListener('click', () => toggleCell(Math.floor(i / cols), i % cols));
-    fragment.appendChild(cell);
-  }
+    for (let i = 0; i < rows * cols; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.addEventListener('click', () => toggleCell(Math.floor(i / cols), i % cols));
+        fragment.appendChild(cell);
+    }
 
-  game.appendChild(fragment);
-  updateGrid();
+    game.appendChild(fragment);
+    updateCellShape();
+    updateGrid();
 }
+
 
 function toggleCell(row, col) {
   const totalStates = getTotalStates();
@@ -406,6 +425,7 @@ function countAliveNeighbors(row, col) {
   }
   return count;
 }
+
 function updateGrid() {
   const cells = game.children;
   for (let i = 0; i < rows * cols; i++) {
