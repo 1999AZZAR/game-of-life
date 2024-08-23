@@ -159,6 +159,7 @@ function getTotalStates() {
     case 7: return 7; // 7 States with Moore Neighborhood
     default: return 2; // All other rules use 2 states
   }
+}
 function handleStateSelectChange() {
   customStateCount = parseInt(stateSelect.value, 10);
   document.getElementById('dying-states').style.display = customStateCount === 3 ? 'block' : 'none';
