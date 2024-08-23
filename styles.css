@@ -102,7 +102,11 @@ select {
     margin-right: 10px;
 }
 
-#rule3-settings input {
+.setting label {
+    margin-right: 10px;
+}
+
+.setting input {
     width: 50px;
     padding: 4px;
     border: 1px solid #3d3d3d;
