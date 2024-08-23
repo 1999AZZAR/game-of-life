@@ -378,6 +378,8 @@ function applyRuleSet15(row, col, aliveNeighbors) {
 
 function applyConvolutionRuleset(row, col) {
     const kernelSize = parseInt(document.getElementById('convolution-kernel').value, 10);
+    const filterValues = document.getElementById('convolution-filter').value.split(',').map(Number);
+    const randomRange = parseFloat(document.getElementById('random-range').value);
     const halfKernel = Math.floor(kernelSize / 2);
     let sum = 0;
 
@@ -385,12 +387,13 @@ function applyConvolutionRuleset(row, col) {
         for (let j = -halfKernel; j <= halfKernel; j++) {
             const neighborRow = (row + i + rows) % rows;
             const neighborCol = (col + j + cols) % cols;
-            sum += grid[neighborRow][neighborCol];
+            const filterIndex = (i + halfKernel) * kernelSize + (j + halfKernel);
+            sum += grid[neighborRow][neighborCol] * (filterValues[filterIndex] || 1);
         }
     }
 
     const average = sum / (kernelSize * kernelSize);
-    nextGrid[row][col] = average;
+    nextGrid[row][col] = Math.min(1, Math.max(0, average + (Math.random() - 0.5) * randomRange));
 }
 function getAverageNeighborState(row, col) {
     let sum = 0;
