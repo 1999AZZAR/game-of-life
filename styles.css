@@ -79,14 +79,14 @@ select {
     padding-right: 30px;
 }
 
-#rule0-settings {
+#rule0-settings, #convolution-settings {
     background-color: #4caf50;
     border-radius: 4px;
     padding: 15px;
     color: #1e1e1e;
 }
 
-#rule0-settings h2 {
+#rule0-settings h2, #convolution-settings h2 {
     text-align: center;
     margin-top: 0;
 }
