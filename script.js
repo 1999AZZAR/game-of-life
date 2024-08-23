@@ -121,7 +121,17 @@ function createAndUpdateGrid() {
 
 function toggleCell(row, col) {
   const totalStates = getTotalStates();
-  grid[row][col] = (grid[row][col] + 1) % totalStates;
+  if (customStateCount === 3) {
+    if (grid[row][col] === 0) {
+      grid[row][col] = 1; // Turn on
+    } else if (grid[row][col] === 1) {
+      grid[row][col] = 2; // Dying state
+    } else if (grid[row][col] === 2) {
+      grid[row][col] = 0; // Turn off
+    }
+  } else {
+    grid[row][col] = (grid[row][col] + 1) % totalStates;
+  }
   updateCell(row, col);
 }
 
