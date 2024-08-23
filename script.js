@@ -5,10 +5,14 @@ const GRID_SIZES = [
   { rows: 204, cols: 204, gridSize: 3, cellSize: 2.9 }
 ];
 
+const stateSelect = document.getElementById('state-select');
 const birthCheckboxes = document.querySelectorAll('input[name="b"]');
+const dyingCheckboxes = document.querySelectorAll('input[name="d"]');
 const survivalCheckboxes = document.querySelectorAll('input[name="s"]');
 
+let customStateCount = 2;
 let customBirthRules = new Set();
+let customDyingRules = new Set();
 let customSurvivalRules = new Set();
 
 const game = document.getElementById('game');
@@ -31,7 +35,9 @@ document.getElementById('stop').addEventListener('click', stopGame);
 document.getElementById('clear').addEventListener('click', clearGrid);
 document.getElementById('random').addEventListener('click', randomizeGrid);
 
+stateSelect.addEventListener('change', handleStateSelectChange);
 birthCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
+dyingCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 survivalCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 
 
@@ -56,6 +62,7 @@ initializeGame();
 function initializeGame() {
   handleGritChange();
   updateRuleSetUI();
+  handleStateSelectChange();
   updateCellShape();
 }
 
@@ -131,8 +138,11 @@ function getCellColor(state) {
 
   if (currentRuleSet === 16) {
     return `rgba(0, 0, 255, ${state})`; // Blue color with varying intensity
-  } else if (totalStates === 2) {
-    return '#4caf50';
+  } else if (customStateCount === 2) {
+    return state === 1 ? '#4caf50' : 'transparent';
+  } else if (customStateCount === 3) {
+    if (state === 1) return '#4caf50'; // Alive
+    if (state === 2) return '#ff9800'; // Dying
   } else if (currentRuleSet === 3) {
     const intensity = state / (maxStates - 1);
     return `rgba(255, 0, 0, ${intensity})`;
@@ -142,7 +152,10 @@ function getCellColor(state) {
   }
 }
 
-function getTotalStates() {
+function handleStateSelectChange() {
+  customStateCount = parseInt(stateSelect.value, 10);
+  document.getElementById('dying-states').style.display = customStateCount === 3 ? 'block' : 'none';
+}
   switch (currentRuleSet) {
     case 2: return 3; // Brian's Brain
     case 3: return maxStates; // Belousov-Zhabotinsky
@@ -208,7 +221,16 @@ function applyRules(row, col) {
 // custom rules
 function updateCustomRules() {
   customBirthRules.clear();
+  customDyingRules.clear();
   customSurvivalRules.clear();
+
+  if (customStateCount === 3) {
+    dyingCheckboxes.forEach(checkbox => {
+      if (checkbox.checked && checkbox.value !== 'none') {
+        customDyingRules.add(parseInt(checkbox.value));
+      }
+    });
+  }
 
   birthCheckboxes.forEach(checkbox => {
     if (checkbox.checked && checkbox.value !== 'none') {
@@ -225,10 +247,20 @@ function updateCustomRules() {
 
 // apply custom rules
 function applyCustomRules(row, col, aliveNeighbors) {
-  if (grid[row][col] === 1) {
-    nextGrid[row][col] = customSurvivalRules.has(aliveNeighbors) ? 1 : 0;
-  } else {
-    nextGrid[row][col] = customBirthRules.has(aliveNeighbors) ? 1 : 0;
+  if (customStateCount === 2) {
+    if (grid[row][col] === 1) {
+      nextGrid[row][col] = customSurvivalRules.has(aliveNeighbors) ? 1 : 0;
+    } else {
+      nextGrid[row][col] = customBirthRules.has(aliveNeighbors) ? 1 : 0;
+    }
+  } else if (customStateCount === 3) {
+    if (grid[row][col] === 1) {
+      nextGrid[row][col] = customSurvivalRules.has(aliveNeighbors) ? 1 : 2;
+    } else if (grid[row][col] === 2) {
+      nextGrid[row][col] = customDyingRules.has(aliveNeighbors) ? 2 : 0;
+    } else {
+      nextGrid[row][col] = customBirthRules.has(aliveNeighbors) ? 1 : 0;
+    }
   }
 }
 
