@@ -390,6 +390,7 @@ function applyConvolutionRuleset(row, col) {
     const average = sum / (kernelSize * kernelSize);
     nextGrid[row][col] = average > 0.5 ? 1 : 0;
 }
+function getAverageNeighborState(row, col) {
     let sum = 0;
     let count = 0;
     for (let i = -1; i <= 1; i++) {
