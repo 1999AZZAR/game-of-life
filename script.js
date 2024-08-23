@@ -197,7 +197,7 @@ function applyRules(row, col) {
     applyRuleSet1, applyRuleSet2, applyRuleSet3, applyRuleSet4,
     applyRuleSet5, applyRuleSet6, applyRuleSet7, applyRuleSet8,
     applyRuleSet9, applyRuleSet10, applyRuleSet11, applyRuleSet12,
-    applyRuleSet13, applyRuleSet14, applyRuleSet15
+    applyRuleSet13, applyRuleSet14, applyRuleSet15, applyConvolutionRuleset
   ];
 
   ruleFunctions[currentRuleSet](row, col, aliveNeighbors);
@@ -374,7 +374,22 @@ function applyRuleSet15(row, col, aliveNeighbors) {
     }
 }
 
-function getAverageNeighborState(row, col) {
+function applyConvolutionRuleset(row, col) {
+    const kernelSize = parseInt(document.getElementById('convolution-kernel').value, 10);
+    const halfKernel = Math.floor(kernelSize / 2);
+    let sum = 0;
+
+    for (let i = -halfKernel; i <= halfKernel; i++) {
+        for (let j = -halfKernel; j <= halfKernel; j++) {
+            const neighborRow = (row + i + rows) % rows;
+            const neighborCol = (col + j + cols) % cols;
+            sum += grid[neighborRow][neighborCol];
+        }
+    }
+
+    const average = sum / (kernelSize * kernelSize);
+    nextGrid[row][col] = average > 0.5 ? 1 : 0;
+}
     let sum = 0;
     let count = 0;
     for (let i = -1; i <= 1; i++) {
@@ -411,6 +426,7 @@ function countInfectedNeighbors(row, col) {
 function updateRuleSetUI() {
   rule3Settings.style.display = currentRuleSet === 3 ? 'block' : 'none';
   rule0Settings.style.display = currentRuleSet === 0 ? 'block' : 'none';
+  document.getElementById('convolution-settings').style.display = currentRuleSet === 16 ? 'block' : 'none';
 }
 
 function countAliveNeighbors(row, col) {
