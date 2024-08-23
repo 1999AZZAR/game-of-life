@@ -127,9 +127,11 @@ function updateCell(row, col) {
 function getCellColor(state) {
   const totalStates = getTotalStates();
 
-  if (state === 0) return 'transparent'; // Dead cells are now transparent
+  if (state === 0) return 'transparent';
 
-  if (totalStates === 2) {
+  if (currentRuleSet === 16) {
+    return `rgba(0, 0, 255, ${state})`; // Blue color with varying intensity
+  } else if (totalStates === 2) {
     return '#4caf50';
   } else if (currentRuleSet === 3) {
     const intensity = state / (maxStates - 1);
@@ -388,7 +390,7 @@ function applyConvolutionRuleset(row, col) {
     }
 
     const average = sum / (kernelSize * kernelSize);
-    nextGrid[row][col] = average > 0.5 ? 1 : 0;
+    nextGrid[row][col] = average;
 }
 function getAverageNeighborState(row, col) {
     let sum = 0;
