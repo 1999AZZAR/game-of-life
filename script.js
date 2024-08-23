@@ -378,7 +378,8 @@ function applyRuleSet15(row, col, aliveNeighbors) {
 
 function applyConvolutionRuleset(row, col) {
     const kernelSize = parseInt(document.getElementById('convolution-kernel').value, 10);
-    const filterValues = document.getElementById('convolution-filter').value.split(',').map(Number);
+    const filterInputs = document.querySelectorAll('#convolution-filter input');
+    const filterValues = Array.from(filterInputs).map(input => parseFloat(input.value) || 0);
     const randomMin = parseFloat(document.getElementById('random-min').value);
     const randomMax = parseFloat(document.getElementById('random-max').value);
     const halfKernel = Math.floor(kernelSize / 2);
