@@ -89,7 +89,6 @@ function handleRuleSetChange() {
   } else {
     updateGrid();
   }
-}
 
 function handleMaxStatesChange() {
   maxStates = parseInt(maxStatesInput.value, 10);
