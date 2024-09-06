@@ -146,20 +146,30 @@ function getCellColor(state) {
 
   if (state === 0) return 'transparent';
 
-  if (currentRuleSet === 16) {
-    return `rgba(0, 0, 255, ${state})`; // Blue color with varying intensity
-  } else if (customStateCount === 2) {
-    return state === 1 ? '#4caf50' : 'transparent';
-  } else if (customStateCount === 3) {
-    if (state === 1) return '#4caf50'; // Alive
-    if (state === 2) return '#ff9800'; // Dying
-  } else if (currentRuleSet === 3) {
-    const intensity = state / (maxStates - 1);
-    return `rgba(255, 0, 0, ${intensity})`;
-  } else {
-    const hue = (state - 1) * (360 / (totalStates - 1));
-    return `hsl(${hue}, 100%, 50%)`;
+  switch (currentRuleSet) {
+    case 16: // Convolution Ruleset
+      return `rgba(0, 0, 255, ${state})`;
+    case 2: // Brian's Brain
+      return state === 1 ? '#4caf50' : state === 2 ? '#ff9800' : 'transparent';
+    case 3: // Belousov-Zhabotinsky
+      const intensity = state / (maxStates - 1);
+      return `rgba(255, 0, 0, ${intensity})`;
+    case 7: // 7 States with Moore Neighborhood
+      return getMultiStateColor(state, 7);
+    default:
+      if (customStateCount === 2) {
+        return state === 1 ? '#4caf50' : 'transparent';
+      } else if (customStateCount === 3) {
+        return state === 1 ? '#4caf50' : state === 2 ? '#ff9800' : 'transparent';
+      } else {
+        return getMultiStateColor(state, totalStates);
+      }
   }
+}
+
+function getMultiStateColor(state, totalStates) {
+  const hue = ((state - 1) / (totalStates - 1)) * 360;
+  return `hsl(${hue}, 100%, 50%)`;
 }
 
 function getTotalStates() {
@@ -167,9 +177,11 @@ function getTotalStates() {
     case 2: return 3; // Brian's Brain
     case 3: return maxStates; // Belousov-Zhabotinsky
     case 7: return 7; // 7 States with Moore Neighborhood
-    default: return 2; // All other rules use 2 states
+    case 16: return 2; // Convolution Ruleset (assuming binary states)
+    default: return customStateCount || 2; // Custom rules or default to binary
   }
 }
+
 function handleStateSelectChange() {
   customStateCount = parseInt(stateSelect.value, 10);
   document.getElementById('dying-states').style.display = customStateCount === 3 ? 'block' : 'none';

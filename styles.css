@@ -41,7 +41,7 @@ h2, h3 {
     display: inline-block;
     margin: 0.2px;
     box-sizing: border-box;
-    border: 1px;
+    border: 1px transparent;
     padding: 0px;
 }
 
@@ -128,7 +128,6 @@ select {
     margin: 0 20px;
 }
 
-/* Footer */
 footer {
     margin-top: 0;
     text-align: center;
@@ -136,7 +135,6 @@ footer {
     color: #888;
 }
 
-/* Links */
 a {
     color: #f5a623;
     text-decoration: none;
