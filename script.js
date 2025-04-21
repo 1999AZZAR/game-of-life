@@ -1,33 +1,49 @@
 // Constants and cached DOM elements
-const GRID_SIZES = [
-  { rows: 51, cols: 51, gridSize: 12, cellSize: 11.9 },
-  { rows: 102, cols: 102, gridSize: 6, cellSize: 5.9 },
-  { rows: 204, cols: 204, gridSize: 3, cellSize: 2.9 }
-];
-
 const stateSelect = document.getElementById('state-select');
 const birthCheckboxes = document.querySelectorAll('input[name="b"]');
 const dyingCheckboxes = document.querySelectorAll('input[name="d"]');
 const survivalCheckboxes = document.querySelectorAll('input[name="s"]');
-
-let customStateCount = 2;
-let customBirthRules = new Set();
-let customDyingRules = new Set();
-let customSurvivalRules = new Set();
-
-const game = document.getElementById('game');
 const gritSelect = document.getElementById('grit-select');
+const speedSelect = document.getElementById('speed-select');
 const ruleSetSelector = document.getElementById('rule-select');
 const rule3Settings = document.getElementById('rule3-settings');
 const rule0Settings = document.getElementById('rule0-settings');
 const maxStatesInput = document.getElementById('max-states');
 
+// Canvas setup for rendering
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+// Handle canvas clicks to toggle cells
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const col = Math.floor(x / baseCellSize);
+  const row = Math.floor(y / baseCellSize);
+  toggleCell(row, col);
+});
+// Off-canvas settings panel toggle
+const settingsPanel = document.getElementById('settings');
+const hideBtn = document.getElementById('hide-settings');
+const showBtn = document.getElementById('show-settings');
+showBtn.addEventListener('click', () => {
+  settingsPanel.classList.remove('-translate-x-full');
+  settingsPanel.classList.add('translate-x-0');
+});
+hideBtn.addEventListener('click', () => {
+  settingsPanel.classList.remove('translate-x-0');
+  settingsPanel.classList.add('-translate-x-full');
+});
+
 let grid, nextGrid, rows, cols, interval;
 let currentRuleSet = 1;
 let maxStates = 50;
 
+// Base cell size based on selection
+let baseCellSize = parseInt(gritSelect.value, 10);
+
 // Event listeners
-gritSelect.addEventListener('change', handleGritChange);
+gritSelect.addEventListener('change', updateGridDimensions);
 ruleSetSelector.addEventListener('change', handleRuleSetChange);
 maxStatesInput.addEventListener('change', handleMaxStatesChange);
 document.getElementById('start').addEventListener('click', startGame);
@@ -40,43 +56,16 @@ birthCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCu
 dyingCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 survivalCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateCustomRules));
 
-
-const cellShapeSelect = document.getElementById('cell-shape-select');
-cellShapeSelect.addEventListener('change', updateCellShape);
-
-function updateCellShape() {
-    const shape = cellShapeSelect.value;
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => {
-        if (shape === 'circle') {
-            cell.style.borderRadius = '50%';
-        } else {
-            cell.style.borderRadius = '0'; // Square shape
-        }
-    });
-}
-
 // Initialize the game
 initializeGame();
 
+// Recompute grid & canvas on resize
+window.addEventListener('resize', updateGridDimensions);
+
 function initializeGame() {
-  handleGritChange();
+  updateGridDimensions();
   updateRuleSetUI();
   handleStateSelectChange();
-  updateCellShape();
-}
-
-function handleGritChange() {
-  const { rows: newRows, cols: newCols, gridSize, cellSize } = GRID_SIZES[gritSelect.value - 1];
-  rows = newRows;
-  cols = newCols;
-
-  document.documentElement.style.setProperty('--grid-size', `${gridSize}px`);
-  document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
-  document.documentElement.style.setProperty('--grit-cols', `${cols}`);
-  document.documentElement.style.setProperty('--grit-rows', `${rows}`);
-
-  createAndUpdateGrid();
 }
 
 function handleRuleSetChange() {
@@ -99,25 +88,12 @@ function handleMaxStatesChange() {
   }
 }
 
-function createAndUpdateGrid() {
-    const fragment = document.createDocumentFragment();
-    grid = createGrid(rows, cols);
-    nextGrid = createGrid(rows, cols);
-
-    game.innerHTML = '';
-
-    for (let i = 0; i < rows * cols; i++) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.addEventListener('click', () => toggleCell(Math.floor(i / cols), i % cols));
-        fragment.appendChild(cell);
-    }
-
-    game.appendChild(fragment);
-    updateCellShape();
-    updateGrid();
+// Initialize grid arrays and clear canvas
+function initGrid() {
+  grid = createGrid(rows, cols);
+  nextGrid = createGrid(rows, cols);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
-
 
 function toggleCell(row, col) {
   const totalStates = getTotalStates();
@@ -132,13 +108,28 @@ function toggleCell(row, col) {
   } else {
     grid[row][col] = (grid[row][col] + 1) % totalStates;
   }
-  updateCell(row, col);
+  drawCell(row, col, grid[row][col]);
 }
 
-function updateCell(row, col) {
-  const cellIndex = row * cols + col;
-  const cellElement = game.children[cellIndex];
-  cellElement.style.backgroundColor = getCellColor(grid[row][col]);
+// Draw or clear a single cell on canvas
+function drawCell(row, col, state) {
+  const size = baseCellSize;
+  const x = col * size, y = row * size;
+  if (state === 0) {
+    ctx.clearRect(x, y, size, size);
+  } else {
+    ctx.fillStyle = getCellColor(state);
+    ctx.fillRect(x, y, size, size);
+  }
+}
+
+// Draw entire grid on canvas
+function drawGrid() {
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      drawCell(row, col, grid[row][col]);
+    }
+  }
 }
 
 function getCellColor(state) {
@@ -192,19 +183,30 @@ function createGrid(rows, cols) {
 }
 
 function startGame() {
-  if (interval) clearInterval(interval);
-  interval = setInterval(runGame, 100);
+  if (interval) cancelAnimationFrame(interval);
+  const speeds = { fast: 60, normal: 30, slow: 10, 'really-slow': 1 };
+  let lastTime = performance.now();
+  function loop(now) {
+    const targetFps = speeds[speedSelect.value] || 30;
+    const intervalMs = 1000 / targetFps;
+    if (now - lastTime >= intervalMs) {
+      runGame();
+      lastTime = now;
+    }
+    interval = requestAnimationFrame(loop);
+  }
+  interval = requestAnimationFrame(loop);
 }
 
 function stopGame() {
-  clearInterval(interval);
+  cancelAnimationFrame(interval);
   interval = null;
 }
 
 function clearGrid() {
   stopGame();
   grid = createGrid(rows, cols);
-  updateGrid();
+  drawGrid();
 }
 
 function randomizeGrid() {
@@ -214,18 +216,19 @@ function randomizeGrid() {
       grid[i][j] = Math.floor(Math.random() * totalStates);
     }
   }
-  updateGrid();
+  drawGrid();
 }
 
 function runGame() {
+  const changed = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       applyRules(row, col);
+      if (nextGrid[row][col] !== grid[row][col]) changed.push({ row, col, state: nextGrid[row][col] });
     }
   }
-
   [grid, nextGrid] = [nextGrid, grid];
-  updateGrid();
+  changed.forEach(({ row, col, state }) => drawCell(row, col, state));
 }
 
 function applyRules(row, col) {
@@ -453,6 +456,26 @@ function applyConvolutionRuleset(row, col) {
     const randomValue = Math.random() * (randomMax - randomMin) + randomMin;
     nextGrid[row][col] = Math.min(1, Math.max(0, average + randomValue));
 }
+
+function updateRuleSetUI() {
+  rule3Settings.style.display = currentRuleSet === 3 ? 'block' : 'none';
+  rule0Settings.style.display = currentRuleSet === 0 ? 'block' : 'none';
+  document.getElementById('convolution-settings').style.display = currentRuleSet === 16 ? 'block' : 'none';
+}
+
+function countAliveNeighbors(row, col) {
+  let count = 0;
+  for (let i = -1; i <= 1; i++) {
+    for (let j = -1; j <= 1; j++) {
+      if (i === 0 && j === 0) continue;
+      const neighborRow = (row + i + rows) % rows;
+      const neighborCol = (col + j + cols) % cols;
+      count += grid[neighborRow][neighborCol] === 1 ? 1 : 0;
+    }
+  }
+  return count;
+}
+
 function getAverageNeighborState(row, col) {
     let sum = 0;
     let count = 0;
@@ -487,30 +510,21 @@ function countInfectedNeighbors(row, col) {
     return count;
 }
 
-function updateRuleSetUI() {
-  rule3Settings.style.display = currentRuleSet === 3 ? 'block' : 'none';
-  rule0Settings.style.display = currentRuleSet === 0 ? 'block' : 'none';
-  document.getElementById('convolution-settings').style.display = currentRuleSet === 16 ? 'block' : 'none';
-}
-
-function countAliveNeighbors(row, col) {
-  let count = 0;
-  for (let i = -1; i <= 1; i++) {
-    for (let j = -1; j <= 1; j++) {
-      if (i === 0 && j === 0) continue;
-      const neighborRow = (row + i + rows) % rows;
-      const neighborCol = (col + j + cols) % cols;
-      count += grid[neighborRow][neighborCol] === 1 ? 1 : 0;
-    }
-  }
-  return count;
-}
-
-function updateGrid() {
-  const cells = game.children;
-  for (let i = 0; i < rows * cols; i++) {
-    const row = Math.floor(i / cols);
-    const col = i % cols;
-    cells[i].style.backgroundColor = getCellColor(grid[row][col]);
-  }
+function updateGridDimensions() {
+  baseCellSize = parseInt(gritSelect.value, 10);
+  const dpr = window.devicePixelRatio || 1;
+  const { width, height } = canvas.getBoundingClientRect();
+  // Set canvas resolution
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Compute grid dimensions to fill area
+  cols = Math.ceil(width / baseCellSize);
+  rows = Math.ceil(height / baseCellSize);
+  document.documentElement.style.setProperty('--grid-size', `${baseCellSize}px`);
+  document.documentElement.style.setProperty('--cell-size', `${baseCellSize}px`);
+  document.documentElement.style.setProperty('--grit-cols', `${cols}`);
+  document.documentElement.style.setProperty('--grit-rows', `${rows}`);
+  initGrid();
+  drawGrid();
 }
